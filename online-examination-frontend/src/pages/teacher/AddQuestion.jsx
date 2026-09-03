@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
 import axios from "axios";
+import api from "../../api/axios";
 
 const AddQuestion = () => {
 
@@ -109,19 +110,23 @@ const AddQuestion = () => {
             );
 
 
-            const response = await axios.post(
+            // const response = await axios.post(
 
-                `http://localhost:8080/api/exams/${examId}/questions`,
+            //     `http://localhost:8080/api/exams/${examId}/questions`,
 
-                questionData,
+            //     questionData,
 
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json"
-                    }
-                }
+            //     {
+            //         headers: {
+            //             Authorization: `Bearer ${token}`,
+            //             "Content-Type": "application/json"
+            //         }
+            //     }
 
+            // );
+            const response = await api.post(
+                `/exams/${examId}/questions`,
+                questionData
             );
 
 

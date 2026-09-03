@@ -47,8 +47,8 @@ const CreateExam = () => {
 
             setLoading(true);
 
-            const response = await axios.post(
-                "http://localhost:8080/api/exams",
+            const response = await api.post(
+                "/api/exams",
                 {
                     title: formData.title,
 
@@ -66,12 +66,12 @@ const CreateExam = () => {
                     endAt:
                         formData.endAt
                 },
-                {
-                    headers: {
-                        Authorization:
-                            `Bearer ${localStorage.getItem("token")}`
-                    }
-                }
+                // {
+                //     headers: {
+                //         Authorization:
+                //             `Bearer ${localStorage.getItem("token")}`
+                //     }
+                // }
             );
 
 

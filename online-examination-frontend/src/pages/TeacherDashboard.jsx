@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import axios from "axios";
+import api from "../api/axios";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -106,16 +107,17 @@ const TeacherDashboard = () => {
                 // FETCH EXAMS
                 // --------------------------------
 
-                const response =
-                    await axios.get(
-                        "http://localhost:8080/api/exams",
-                        {
-                            headers: {
-                                Authorization:
-                                    `Bearer ${token}`
-                            }
-                        }
-                    );
+                // const response =
+                //     await axios.get(
+                //         "http://localhost:8080/api/exams",
+                //         {
+                //             headers: {
+                //                 Authorization:
+                //                     `Bearer ${token}`
+                //             }
+                //         }
+                //     );
+                const response = await api.get("/exams");
 
 
                 setExams(

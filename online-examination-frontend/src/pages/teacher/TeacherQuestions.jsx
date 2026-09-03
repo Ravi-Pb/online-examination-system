@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import axios from "axios";
+import api from "../../api/axios";
 
 import { useAuth } from "../../context/AuthContext";
 
@@ -86,16 +87,18 @@ const TeacherQuestions = () => {
                 // FETCH QUESTIONS
                 // --------------------------------
 
-                const response =
-                    await axios.get(
-                        "http://localhost:8080/api/questions",
-                        {
-                            headers: {
-                                Authorization:
-                                    `Bearer ${token}`
-                            }
-                        }
-                    );
+                // const response =
+                //     await axios.get(
+                //         "http://localhost:8080/api/questions",
+                //         {
+                //             headers: {
+                //                 Authorization:
+                //                     `Bearer ${token}`
+                //             }
+                //         }
+                //     );
+
+                const response = await api.get("/exams");
 
 
                 console.log(

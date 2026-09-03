@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import api from "../../api/axios";
 
 const TeacherExams = () => {
 
@@ -23,15 +24,16 @@ const TeacherExams = () => {
             setLoading(true);
             setError("");
 
-            const response = await axios.get(
-                "http://localhost:8080/api/exams",
-                {
-                    headers: {
-                        Authorization:
-                            `Bearer ${localStorage.getItem("token")}`
-                    }
-                }
-            );
+            // const response = await axios.get(
+            //     "http://localhost:8080/api/exams",
+            //     {
+            //         headers: {
+            //             Authorization:
+            //                 `Bearer ${localStorage.getItem("token")}`
+            //         }
+            //     }
+            // );
+            const response = await api.get("/exams");
 
             setExams(response.data);
 
@@ -86,15 +88,15 @@ const TeacherExams = () => {
             setActionLoading(examId);
             setError("");
 
-            await axios.patch(
-                `http://localhost:8080/api/exams/${examId}/publish`,
+            await api.patch(
+                `/exams/${examId}/publish`,
                 {},
-                {
-                    headers: {
-                        Authorization:
-                            `Bearer ${localStorage.getItem("token")}`
-                    }
-                }
+                // {
+                //     headers: {
+                //         Authorization:
+                //             `Bearer ${localStorage.getItem("token")}`
+                //     }
+                // }
             );
 
             await fetchExams();
@@ -139,14 +141,14 @@ const TeacherExams = () => {
             setActionLoading(examId);
             setError("");
 
-            await axios.delete(
-                `http://localhost:8080/api/exams/${examId}`,
-                {
-                    headers: {
-                        Authorization:
-                            `Bearer ${localStorage.getItem("token")}`
-                    }
-                }
+            await api.delete(
+                `/exams/${examId}`,
+                // {
+                //     headers: {
+                //         Authorization:
+                //             `Bearer ${localStorage.getItem("token")}`
+                //     }
+                // }
             );
 
             setExams(
