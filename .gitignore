@@ -29,3 +29,7 @@ online-examination-system/target/
 # OS
 .DS_Store
 Thumbs.db
+
+
+# local properies
+online-examination-system/src/main/resources/application-local.properties

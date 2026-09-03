@@ -2,6 +2,7 @@ package com.example.oes.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -11,19 +12,26 @@ import java.util.Date;
 @Service
 public class JwtService {
 
-    private static final String SECRET_KEY =
-            "my-super-secret-key-for-online-examination-system-2026";
+//    private static final String SECRET_KEY =
+//            "my-super-secret-key-for-online-examination-system-2026";
 
     private static final long EXPIRATION_TIME =
             1000 * 60 * 60; // 1 hour
 
     private final SecretKey key;
 
-    public JwtService() {
-        this.key = Keys.hmacShaKeyFor(
-                SECRET_KEY.getBytes(StandardCharsets.UTF_8)
-        );
-    }
+//    public JwtService() {
+//        this.key = Keys.hmacShaKeyFor(
+//                SECRET_KEY.getBytes(StandardCharsets.UTF_8)
+//        );
+//    }
+public JwtService(
+        @Value("${jwt.secret}") String secretKey) {
+
+    this.key = Keys.hmacShaKeyFor(
+            secretKey.getBytes(StandardCharsets.UTF_8)
+    );
+}
 
     public String generateToken(Long userId, String email, String role) {
 
