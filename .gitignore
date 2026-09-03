@@ -1,0 +1,31 @@
+# React
+online-examination-frontend/node_modules/
+online-examination-frontend/dist/
+
+# Spring Boot / Maven
+online-examination-system/target/
+
+# Java compiled files
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
