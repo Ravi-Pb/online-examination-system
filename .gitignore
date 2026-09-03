@@ -7,7 +7,7 @@ online-examination-system/target/
 
 # Java compiled files
 *.class
-*.jar
+# *.jar
 *.war
 
 # IDE
