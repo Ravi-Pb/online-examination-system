@@ -244,7 +244,7 @@ public class SecurityConfig {
         // React development server
         configuration.setAllowedOrigins(
                 List.of("http://localhost:5173",
-                        "https://online-examination-system-ravi-pb.vercel.app/"
+                        "https://online-examination-system-ravi-pb.vercel.app"
                         )
         );
 
