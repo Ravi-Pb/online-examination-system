@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-import axios from "axios";
-import api from "../api/axios";
-
 import { useAuth } from "../context/AuthContext";
+
+import {
+    getMyExams,
+    deleteExam,
+    publishExam
+} from "../api/examApi";
+
+import TeacherSidebar from "../components/teacher/TeacherSidebar";
+import ExamCard from "../components/teacher/ExamCard";
 
 
 const TeacherDashboard = () => {
@@ -30,6 +36,9 @@ const TeacherDashboard = () => {
 
     const [examExpiredMessage, setExamExpiredMessage] =
         useState(false);
+
+    const [actionLoading, setActionLoading] =
+        useState(null);
 
 
     // ========================================
@@ -67,7 +76,7 @@ const TeacherDashboard = () => {
 
 
     // ========================================
-    // LOAD EXAMS
+    // LOAD MY EXAMS
     // ========================================
 
     useEffect(() => {
@@ -104,20 +113,11 @@ const TeacherDashboard = () => {
 
 
                 // --------------------------------
-                // FETCH EXAMS
+                // FETCH CURRENT TEACHER'S EXAMS
                 // --------------------------------
 
-                // const response =
-                //     await axios.get(
-                //         "http://localhost:8080/api/exams",
-                //         {
-                //             headers: {
-                //                 Authorization:
-                //                     `Bearer ${token}`
-                //             }
-                //         }
-                //     );
-                const response = await api.get("/exams");
+                const response =
+                    await getMyExams();
 
 
                 setExams(
@@ -215,73 +215,163 @@ const TeacherDashboard = () => {
 
 
     // ========================================
-    // DATE FORMAT
+    // DELETE EXAM
     // ========================================
 
-    const formatDateTime = (dateTime) => {
+    const handleDeleteExam = async (examId) => {
 
-        if (!dateTime) {
+        const confirmed =
+            window.confirm(
+                "Are you sure you want to delete this exam?"
+            );
 
-            return "N/A";
+
+        if (!confirmed) {
+            return;
+        }
+
+
+        try {
+
+            setActionLoading(
+                `delete-${examId}`
+            );
+
+            setError("");
+
+
+            await deleteExam(examId);
+
+
+            // Remove deleted exam
+            // from current state
+
+            setExams(
+                previousExams =>
+                    previousExams.filter(
+                        exam =>
+                            exam.examId !== examId
+                    )
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Failed to delete exam:",
+                error
+            );
+
+
+            const status =
+                error.response?.status;
+
+
+            if (
+                status === 401 ||
+                status === 403
+            ) {
+
+                logout();
+
+                navigate(
+                    "/login",
+                    {
+                        replace: true
+                    }
+                );
+
+                return;
+            }
+
+
+            setError(
+                error.response?.data?.message ||
+                "Unable to delete exam."
+            );
+
+
+        } finally {
+
+            setActionLoading(null);
 
         }
 
-        return new Date(
-            dateTime
-        ).toLocaleString();
-
     };
 
 
     // ========================================
-    // LOGOUT
+    // PUBLISH EXAM
     // ========================================
 
-    const handleLogout = () => {
+    const handlePublishExam = async (examId) => {
 
-        logout();
+        try {
 
-        navigate(
-            "/login",
-            {
-                replace: true
+            setActionLoading(
+                `publish-${examId}`
+            );
+
+            setError("");
+
+
+            const response =
+                await publishExam(examId);
+
+
+            // Update published exam
+            // in local state
+
+            setExams(
+                previousExams =>
+                    previousExams.map(
+                        exam =>
+                            exam.examId === examId
+                                ? response.data
+                                : exam
+                    )
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Failed to publish exam:",
+                error
+            );
+
+
+            const status =
+                error.response?.status;
+
+
+            if (
+                status === 401 ||
+                status === 403
+            ) {
+
+                logout();
+
+                navigate(
+                    "/login",
+                    {
+                        replace: true
+                    }
+                );
+
+                return;
             }
-        );
-
-    };
 
 
-    // ========================================
-    // STATUS STYLE
-    // ========================================
-
-    const getStatusStyle = (status) => {
-
-        switch (status) {
-
-            case "PUBLISHED":
-
-                return "bg-green-100 text-green-700";
+            setError(
+                error.response?.data?.message ||
+                "Unable to publish exam."
+            );
 
 
-            case "DRAFT":
+        } finally {
 
-                return "bg-yellow-100 text-yellow-700";
-
-
-            case "COMPLETED":
-
-                return "bg-blue-100 text-blue-700";
-
-
-            case "EXPIRED":
-
-                return "bg-red-100 text-red-700";
-
-
-            default:
-
-                return "bg-slate-100 text-slate-600";
+            setActionLoading(null);
 
         }
 
@@ -294,270 +384,31 @@ const TeacherDashboard = () => {
 
     return (
 
-        <div className="min-h-screen bg-slate-100 flex">
+        <div className="min-h-screen overflow-hidden bg-slate-100 flex">
 
 
             {/* ================================================= */}
             {/* SIDEBAR */}
             {/* ================================================= */}
 
-            <aside className="w-64 bg-slate-900 text-white flex flex-col">
-
-
-                {/* Logo */}
-
-                <div className="px-6 py-5 border-b border-slate-700">
-
-                    <h1 className="text-xl font-bold">
-                        Online Examination
-                    </h1>
-
-                    <p className="text-xs text-slate-400 mt-1">
-                        Teacher Panel
-                    </p>
-
-                </div>
-
-
-                {/* Navigation */}
-
-                <nav className="flex-1 px-4 py-6 space-y-2">
-
-
-                    {/* Dashboard */}
-
-                    <button
-                        onClick={() =>
-                            navigate("/teacher/dashboard")
-                        }
-                        className="
-                            w-full flex items-center gap-3
-                            px-4 py-3
-                            rounded-lg
-                            bg-slate-700
-                            text-white
-                            font-medium
-                            text-left
-                        "
-                    >
-
-                        <span>🏠</span>
-
-                        Dashboard
-
-                    </button>
-
-
-                    {/* My Exams */}
-
-                    <button
-                        onClick={() =>
-                            navigate("/teacher/exams")
-                        }
-                        className="
-                            w-full flex items-center gap-3
-                            px-4 py-3
-                            rounded-lg
-                            text-slate-300
-                            hover:bg-slate-800
-                            hover:text-white
-                            transition
-                            text-left
-                        "
-                    >
-
-                        <span>📝</span>
-
-                        My Exams
-
-                    </button>
-
-
-                    {/* Create Exam */}
-
-                    <button
-                        onClick={() =>
-                            navigate("/teacher/create-exam")
-                        }
-                        className="
-                            w-full flex items-center gap-3
-                            px-4 py-3
-                            rounded-lg
-                            text-slate-300
-                            hover:bg-slate-800
-                            hover:text-white
-                            transition
-                            text-left
-                        "
-                    >
-
-                        <span>➕</span>
-
-                        Create Exam
-
-                    </button>
-
-
-                    {/* Questions */}
-
-                    <button
-                        onClick={() =>
-                            navigate("/teacher/questions")
-                        }
-                        className="
-                            w-full flex items-center gap-3
-                            px-4 py-3
-                            rounded-lg
-                            text-slate-300
-                            hover:bg-slate-800
-                            hover:text-white
-                            transition
-                            text-left
-                        "
-                    >
-
-                        <span>❓</span>
-
-                        Questions
-
-                    </button>
-
-
-                    {/* Results */}
-
-                    <button
-                        onClick={() =>
-                            navigate("/teacher/results")
-                        }
-                        className="
-                            w-full flex items-center gap-3
-                            px-4 py-3
-                            rounded-lg
-                            text-slate-300
-                            hover:bg-slate-800
-                            hover:text-white
-                            transition
-                            text-left
-                        "
-                    >
-
-                        <span>📊</span>
-
-                        Results
-
-                    </button>
-
-
-                    {/* Students */}
-
-                    <button
-                        onClick={() =>
-                            navigate("/teacher/students")
-                        }
-                        className="
-                            w-full flex items-center gap-3
-                            px-4 py-3
-                            rounded-lg
-                            text-slate-300
-                            hover:bg-slate-800
-                            hover:text-white
-                            transition
-                            text-left
-                        "
-                    >
-
-                        <span>👥</span>
-
-                        Students
-
-                    </button>
-                    <button
-                        onClick={() => navigate("/teacher/subjects")}
-                        className="
-                            w-full flex items-center gap-3
-                            px-4 py-3
-                            rounded-lg
-                            text-slate-300
-                            hover:bg-slate-800
-                            hover:text-white
-                            transition
-                            text-left
-                        "
-                    >
-                        <span>📚</span>
-                        Subjects
-                    </button>
-
-
-                    {/* Profile */}
-
-                    <button
-                        onClick={() =>
-                            navigate("/teacher/profile")
-                        }
-                        className="
-                            w-full flex items-center gap-3
-                            px-4 py-3
-                            rounded-lg
-                            text-slate-300
-                            hover:bg-slate-800
-                            hover:text-white
-                            transition
-                            text-left
-                        "
-                    >
-
-                        <span>👤</span>
-
-                        Profile
-
-                    </button>
-
-                </nav>
-
-
-                {/* Logout */}
-
-                <div className="px-4 py-5 border-t border-slate-700">
-
-                    <button
-                        onClick={handleLogout}
-                        className="
-                            w-full flex items-center gap-3
-                            px-4 py-3
-                            rounded-lg
-                            text-slate-300
-                            hover:bg-red-600
-                            hover:text-white
-                            transition
-                            text-left
-                        "
-                    >
-
-                        <span>🚪</span>
-
-                        Logout
-
-                    </button>
-
-                </div>
-
-            </aside>
+            <TeacherSidebar />
 
 
             {/* ================================================= */}
             {/* MAIN CONTENT */}
             {/* ================================================= */}
 
-            <main className="flex-1 p-8">
+            <main className="flex-1 p-8 overflow-y-auto">
 
 
-                {/* Header */}
+                {/* ============================================= */}
+                {/* HEADER */}
+                {/* ============================================= */}
 
                 <div className="mb-8 flex items-center justify-between gap-6">
 
 
-                    {/* Left — Dashboard heading */}
+                    {/* Left */}
 
                     <div className="flex-1">
 
@@ -572,7 +423,7 @@ const TeacherDashboard = () => {
                     </div>
 
 
-                    {/* Right — Teacher Greeting */}
+                    {/* Right */}
 
                     <div className="flex-1 text-right">
 
@@ -593,9 +444,9 @@ const TeacherDashboard = () => {
                 </div>
 
 
-                {/* ================================================= */}
+                {/* ============================================= */}
                 {/* EXPIRED MESSAGE */}
-                {/* ================================================= */}
+                {/* ============================================= */}
 
                 {examExpiredMessage && (
 
@@ -621,9 +472,9 @@ const TeacherDashboard = () => {
                 )}
 
 
-                {/* ================================================= */}
+                {/* ============================================= */}
                 {/* ERROR */}
-                {/* ================================================= */}
+                {/* ============================================= */}
 
                 {error && (
 
@@ -646,9 +497,9 @@ const TeacherDashboard = () => {
                 )}
 
 
-                {/* ================================================= */}
-                {/* STAT CARDS */}
-                {/* ================================================= */}
+                {/* ============================================= */}
+                {/* STATISTICS */}
+                {/* ============================================= */}
 
                 <div
                     className="
@@ -755,9 +606,9 @@ const TeacherDashboard = () => {
                 </div>
 
 
-                {/* ================================================= */}
+                {/* ============================================= */}
                 {/* RECENT EXAMS */}
-                {/* ================================================= */}
+                {/* ============================================= */}
 
                 <div
                     className="
@@ -790,7 +641,7 @@ const TeacherDashboard = () => {
                             </h3>
 
                             <p className="text-sm text-slate-500 mt-1">
-                                Exams available in the system.
+                                Exams created by you.
                             </p>
 
                         </div>
@@ -819,7 +670,9 @@ const TeacherDashboard = () => {
                     </div>
 
 
-                    {/* Loading */}
+                    {/* ========================================= */}
+                    {/* LOADING */}
+                    {/* ========================================= */}
 
                     {loading && (
 
@@ -834,7 +687,9 @@ const TeacherDashboard = () => {
                     )}
 
 
-                    {/* Empty */}
+                    {/* ========================================= */}
+                    {/* EMPTY */}
+                    {/* ========================================= */}
 
                     {!loading &&
                         exams.length === 0 && (
@@ -858,168 +713,34 @@ const TeacherDashboard = () => {
                         )}
 
 
+                    {/* ========================================= */}
                     {/* EXAM LIST */}
+                    {/* ========================================= */}
 
                     {!loading &&
                         exams.length > 0 && (
 
-                            <div className="divide-y divide-slate-200">
+                            <div
+                                className="
+                                    p-6
+                                    grid
+                                    grid-cols-1
+                                    md:grid-cols-2
+                                    xl:grid-cols-3
+                                    2xl:grid-cols-4
+                                    gap-5
+                                "
+                            >
 
                                 {exams.map((exam) => (
 
-                                    <div
+                                    <ExamCard
                                         key={exam.examId}
-                                        className="
-                                            px-6 py-5
-                                            hover:bg-slate-50
-                                            transition
-                                        "
-                                    >
-
-                                        <div
-                                            className="
-                                                flex
-                                                flex-col
-                                                lg:flex-row
-                                                lg:items-center
-                                                lg:justify-between
-                                                gap-5
-                                            "
-                                        >
-
-
-                                            {/* Exam Information */}
-
-                                            <div className="min-w-0">
-
-                                                <div className="flex items-center gap-3 flex-wrap">
-
-                                                    <h4
-                                                        className="
-                                                            text-lg
-                                                            font-semibold
-                                                            text-slate-800
-                                                        "
-                                                    >
-                                                        {exam.title}
-                                                    </h4>
-
-
-                                                    {exam.examStatus && (
-
-                                                        <span
-                                                            className={`
-                                                                px-2.5
-                                                                py-1
-                                                                rounded-full
-                                                                text-xs
-                                                                font-semibold
-                                                                ${getStatusStyle(
-                                                                    exam.examStatus
-                                                                )}
-                                                            `}
-                                                        >
-
-                                                            {exam.examStatus}
-
-                                                        </span>
-
-                                                    )}
-
-                                                </div>
-
-
-                                                <p className="mt-1 text-sm text-slate-500">
-
-                                                    {exam.subjectCode || "N/A"}
-
-                                                    {exam.subjectName && (
-                                                        <>
-                                                            {" • "}
-                                                            {exam.subjectName}
-                                                        </>
-                                                    )}
-
-                                                </p>
-
-                                            </div>
-
-
-                                            {/* Exam Details */}
-
-                                            <div
-                                                className="
-                                                    grid
-                                                    grid-cols-1
-                                                    sm:grid-cols-3
-                                                    gap-3
-                                                    lg:min-w-[550px]
-                                                "
-                                            >
-
-
-                                                {/* Duration */}
-
-                                                <div className="rounded-lg bg-slate-50 p-3">
-
-                                                    <p className="text-xs text-slate-500">
-                                                        Duration
-                                                    </p>
-
-                                                    <p className="mt-1 text-sm font-semibold text-slate-700">
-
-                                                        {exam.durationMinutes
-                                                            ? `${exam.durationMinutes} minutes`
-                                                            : "N/A"
-                                                        }
-
-                                                    </p>
-
-                                                </div>
-
-
-                                                {/* Starts */}
-
-                                                <div className="rounded-lg bg-slate-50 p-3">
-
-                                                    <p className="text-xs text-slate-500">
-                                                        Starts
-                                                    </p>
-
-                                                    <p className="mt-1 text-sm font-semibold text-slate-700">
-
-                                                        {formatDateTime(
-                                                            exam.startAt
-                                                        )}
-
-                                                    </p>
-
-                                                </div>
-
-
-                                                {/* Ends */}
-
-                                                <div className="rounded-lg bg-slate-50 p-3">
-
-                                                    <p className="text-xs text-slate-500">
-                                                        Ends
-                                                    </p>
-
-                                                    <p className="mt-1 text-sm font-semibold text-slate-700">
-
-                                                        {formatDateTime(
-                                                            exam.endAt
-                                                        )}
-
-                                                    </p>
-
-                                                </div>
-
-                                            </div>
-
-                                        </div>
-
-                                    </div>
+                                        exam={exam}
+                                        onDelete={handleDeleteExam}
+                                        onPublish={handlePublishExam}
+                                        actionLoading={actionLoading}
+                                    />
 
                                 ))}
 

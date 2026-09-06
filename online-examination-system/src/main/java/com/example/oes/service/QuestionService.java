@@ -158,8 +158,7 @@ public class QuestionService {
     }
 
     @Transactional(readOnly = true)
-    public QuestionResponse getQuestionById(
-            Long questionId) {
+    public QuestionResponse getQuestionById(Long questionId) {
 
         Question question = questionRepository
                 .findById(questionId)
@@ -169,6 +168,7 @@ public class QuestionService {
                                         + questionId
                         ));
 
+        verifyTeacherOwnsExam(question.getExam());
 
         return convertToResponse(question);
     }

@@ -51,4 +51,8 @@ public class ExamController {
 
         return examService.publishExam(examId);
     }
+    @GetMapping("/my")
+    public List<ExamResponse> getMyExams() {
+        return examService.getMyExams();
+    }
 }

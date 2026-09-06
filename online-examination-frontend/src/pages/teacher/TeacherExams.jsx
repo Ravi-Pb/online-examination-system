@@ -185,9 +185,7 @@ const TeacherExams = () => {
 
     const handleEdit = (examId) => {
 
-        navigate(
-            `/teacher/exams/${examId}/edit`
-        );
+       navigate(`/teacher/exams/${exam.examId}/questions`);
 
     };
 
@@ -651,7 +649,7 @@ const TeacherExams = () => {
                                     {/* Edit */}
 
                                     <button
-                                        onClick={() =>
+                                        onClick={(exam) =>
                                             handleEdit(
                                                 exam.examId
                                             )
@@ -674,7 +672,7 @@ const TeacherExams = () => {
                                             disabled:opacity-50
                                         "
                                     >
-                                        Edit
+                                        Questions
                                     </button>
 
 

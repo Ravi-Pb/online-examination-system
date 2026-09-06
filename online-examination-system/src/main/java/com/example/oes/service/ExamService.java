@@ -105,11 +105,12 @@ public class ExamService {
     }
     public ExamResponse getExamById(Long examId) {
 
-        Exam exam = examRepository.findById(examId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Exam not found with id: " + examId
-                        ));
+//        Exam exam = examRepository.findById(examId)
+//                .orElseThrow(() ->
+//                        new ResourceNotFoundException(
+//                                "Exam not found with id: " + examId
+//                        ));
+        Exam exam = getExamOwnedByCurrentTeacher(examId);
 
         return new ExamResponse(
                 exam.getExamId(),
@@ -131,11 +132,12 @@ public class ExamService {
             Long examId,
             ExamUpdateRequest request) {
 
-        Exam exam = examRepository.findById(examId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Exam not found with id: " + examId
-                        ));
+//        Exam exam = examRepository.findById(examId)
+//                .orElseThrow(() ->
+//                        new ResourceNotFoundException(
+//                                "Exam not found with id: " + examId
+//                        ));
+        Exam exam = getExamOwnedByCurrentTeacher(examId);
 
         Subject subject = subjectRepository.findById(request.getSubjectId())
                 .orElseThrow(() ->
@@ -171,22 +173,24 @@ public class ExamService {
     }
     public void deleteExam(Long examId) {
 
-        Exam exam = examRepository.findById(examId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Exam not found with id: " + examId
-                        ));
+//        Exam exam = examRepository.findById(examId)
+//                .orElseThrow(() ->
+//                        new ResourceNotFoundException(
+//                                "Exam not found with id: " + examId
+//                        ));
+        Exam exam = getExamOwnedByCurrentTeacher(examId);
 
         examRepository.delete(exam);
     }
 
     public ExamResponse publishExam(Long examId) {
 
-        Exam exam = examRepository.findById(examId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Exam not found with id: " + examId
-                        ));
+//        Exam exam = examRepository.findById(examId)
+//                .orElseThrow(() ->
+//                        new ResourceNotFoundException(
+//                                "Exam not found with id: " + examId
+//                        ));
+        Exam exam = getExamOwnedByCurrentTeacher(examId);
 
         if ("PUBLISHED".equals(exam.getExamStatus())) {
             throw new IllegalStateException(
@@ -213,5 +217,79 @@ public class ExamService {
                 publishedExam.getCreatedAt(),
                 publishedExam.getUpdatedAt()
         );
+    }
+    private User getAuthenticatedUser() {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        String email = authentication.getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Authenticated user not found"
+                        ));
+    }
+    private Exam getExamOwnedByCurrentTeacher(Long examId) {
+
+        User user = getAuthenticatedUser();
+
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Exam not found with id: " + examId
+                        ));
+
+        if (!exam.getCreatedBy().getUserId()
+                .equals(user.getUserId())) {
+
+            throw new IllegalStateException(
+                    "You are not allowed to access this exam"
+            );
+        }
+
+        return exam;
+    }
+
+    public List<ExamResponse> getMyExams() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        String email = authentication.getName();
+
+        User teacher = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Authenticated user not found"
+                        ));
+
+        if (!"TEACHER".equalsIgnoreCase(teacher.getUserRole())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Only teachers can access their exams"
+            );
+        }
+
+        return examRepository.findByCreatedBy(teacher)
+                .stream()
+                .map(exam -> new ExamResponse(
+                        exam.getExamId(),
+                        exam.getTitle(),
+                        exam.getSubject().getSubjectId(),
+                        exam.getSubject().getSubjectCode(),
+                        exam.getSubject().getSubjectName(),
+                        exam.getExamDescription(),
+                        exam.getDurationMinutes(),
+                        exam.getStartAt(),
+                        exam.getEndAt(),
+                        exam.getExamStatus(),
+                        exam.getCreatedBy().getUserId(),
+                        exam.getCreatedAt(),
+                        exam.getUpdatedAt()
+                ))
+                .toList();
     }
 }

@@ -15,6 +15,7 @@ import TeacherQuestions from "./pages/teacher/TeacherQuestions";
 import LandingPage from "./pages/LandingPage";
 import AddQuestion from "./pages/teacher/AddQuestion";
 import TeacherSubjects from "./pages/teacher/TeacherSubjects";
+import TeacherExamQuestions from "./pages/teacher/TeacherExamQuestions";
 
 function App() {
     return (
@@ -79,34 +80,46 @@ function App() {
                         element={<TeacherDashboard />}
                     />
 
-                </Route>
+                
 
                     <Route
                         path="/teacher/create-exam"
                         element={<CreateExam />}
                     />
 
-                <Route
-                    path="/teacher/exams"
-                    element={<TeacherExams />}
-                />
-                <Route
-                    path="/teacher/exams/:examId/questions/create"
-                    element={<AddQuestion />}
-                />
-                <Route
-                    path="/teacher/questions"
-                    element={<TeacherQuestions />}
-                />
+                    <Route
+                        path="/teacher/exams"
+                        element={<TeacherExams />}
+                    />
+                    <Route
+                        path="/teacher/exams/:examId/questions/create"
+                        element={<AddQuestion />}
+                    />
+                    <Route
+                        path="/teacher/questions"
+                        element={<TeacherQuestions />}
+                    />
 
-                <Route
-                    path="/teacher/subjects"
-                    element={<TeacherSubjects />}
-                />
+                    <Route
+                        path="/teacher/subjects"
+                        element={<TeacherSubjects />}
+                    />
+                    <Route
+                        path="/teacher/exams/:examId/questions"
+                        element={<TeacherExamQuestions />}
+                    />
+                    <Route
+                        path="/teacher/exams/:examId/questions/:questionId/edit"
+                        element={<AddQuestion />}
+                    />
+
+                    
+
+                </Route>
 
                 {/* Default route */}
 
-                <Route
+                {/* <Route
                     path="/"
                     element={
                         <Navigate
@@ -114,7 +127,7 @@ function App() {
                             replace
                         />
                     }
-                />
+                /> */}
 
                 {/* Unknown route */}
 

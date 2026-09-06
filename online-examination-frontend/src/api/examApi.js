@@ -1,5 +1,5 @@
 import api from "./axios";
-
+//Student
 export const getExams = () => {
     return api.get("/exams");
 };
@@ -40,4 +40,59 @@ export const getMyAttempts = () => {
 
 export const getExamResult = (attemptId) => {
     return api.get(`/attempts/${attemptId}/result`);
+};
+
+// ========================================
+// TEACHER - EXAMS
+// ========================================
+
+export const getMyExams = () => {
+    return api.get("/exams/my");
+};
+
+export const getExamById = (examId) => {
+    return api.get(`/exams/${examId}`);
+};
+
+// export const createExam = (examData) => {
+//     return api.post("/exams", examData);
+// };
+export const createExam = async (examData) => {
+
+    const response = await api.post(
+        "/exams",
+        examData
+    );
+
+    return response.data;
+};
+
+
+export const updateExam = (examId, examData) => {
+    return api.put(
+        `/exams/${examId}`,
+        examData
+    );
+};
+
+export const deleteExam = (examId) => {
+    return api.delete(
+        `/exams/${examId}`
+    );
+};
+
+export const publishExam = (examId) => {
+    return api.patch(
+        `/exams/${examId}/publish`
+    );
+};
+
+// Get all subjects
+export const getSubjects = async () => {
+
+    const response = await api.get(
+        "/subjects"
+    );
+
+    return response.data;
 };

@@ -1,13 +1,41 @@
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useState } from "react";
-import axios from "axios";
-import api from "../../api/axios";
+
+import { useAuth } from "../../context/AuthContext";
+
+import {
+    createQuestion,
+    updateQuestion,
+    getQuestion
+} from "../../api/questionApi";
+
+import TeacherSidebar from "../../components/teacher/TeacherSidebar";
+
 
 const AddQuestion = () => {
 
     const navigate = useNavigate();
 
-    const { examId } = useParams();
+    const {
+        examId,
+        questionId
+    } = useParams();
+
+    const {
+        logout
+    } = useAuth();
+
+
+    // ========================================
+    // EDIT MODE
+    // ========================================
+
+    const isEditMode = Boolean(questionId);
+
+
+    // ========================================
+    // STATE
+    // ========================================
 
     const [question, setQuestion] = useState("");
 
@@ -20,14 +48,344 @@ const AddQuestion = () => {
 
     const [marks, setMarks] = useState(1);
 
-    const [questionOrder, setQuestionOrder] = useState(1);
+    const [questionOrder, setQuestionOrder] = useState(null);
 
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+
+    const [submitting, setSubmitting] = useState(false);
 
     const [error, setError] = useState("");
 
     const [success, setSuccess] = useState("");
 
+
+    // ========================================
+    // LOAD QUESTION / DETERMINE ORDER
+    // ========================================
+
+    useEffect(() => {
+
+        const loadQuestionData = async () => {
+
+            try {
+
+                setLoading(true);
+                setError("");
+                setSuccess("");
+
+
+                // ========================================
+                // CHECK TOKEN
+                // ========================================
+
+                const token =
+                    localStorage.getItem("token");
+
+
+                if (!token) {
+
+                    logout();
+
+                    navigate(
+                        "/login",
+                        {
+                            replace: true
+                        }
+                    );
+
+                    return;
+                }
+
+
+                // =================================================
+                // EDIT MODE
+                // =================================================
+
+                if (isEditMode) {
+
+                    // --------------------------------
+                    // GET EXISTING QUESTION
+                    // --------------------------------
+
+                    const response =
+                        await getQuestion(questionId);
+
+
+                    const existingQuestion =
+                        response?.data || response;
+
+
+                    if (!existingQuestion) {
+
+                        setError(
+                            "Question not found or you are not authorized to edit this question."
+                        );
+
+                        return;
+                    }
+
+
+                    // --------------------------------
+                    // VERIFY EXAM
+                    // --------------------------------
+
+                    if (
+                        String(existingQuestion.examId) !==
+                        String(examId)
+                    ) {
+
+                        setError(
+                            "This question does not belong to this exam."
+                        );
+
+                        return;
+                    }
+
+
+                    // --------------------------------
+                    // LOAD QUESTION
+                    // --------------------------------
+
+                    setQuestion(
+                        existingQuestion.questionText || ""
+                    );
+
+
+                    setMarks(
+                        existingQuestion.marks || 1
+                    );
+
+
+                    setQuestionOrder(
+                        existingQuestion.questionOrder
+                    );
+
+
+                    // --------------------------------
+                    // LOAD OPTIONS
+                    // --------------------------------
+
+                    const options =
+                        Array.isArray(
+                            existingQuestion.options
+                        )
+                            ? [
+                                ...existingQuestion.options
+                            ].sort(
+                                (a, b) =>
+                                    Number(a.optionOrder) -
+                                    Number(b.optionOrder)
+                            )
+                            : [];
+
+
+                    const optionAData =
+                        options.find(
+                            option =>
+                                option.optionLabel === "A"
+                        );
+
+
+                    const optionBData =
+                        options.find(
+                            option =>
+                                option.optionLabel === "B"
+                        );
+
+
+                    const optionCData =
+                        options.find(
+                            option =>
+                                option.optionLabel === "C"
+                        );
+
+
+                    const optionDData =
+                        options.find(
+                            option =>
+                                option.optionLabel === "D"
+                        );
+
+
+                    setOptionA(
+                        optionAData?.optionText || ""
+                    );
+
+
+                    setOptionB(
+                        optionBData?.optionText || ""
+                    );
+
+
+                    setOptionC(
+                        optionCData?.optionText || ""
+                    );
+
+
+                    setOptionD(
+                        optionDData?.optionText || ""
+                    );
+
+
+                    // --------------------------------
+                    // FIND CORRECT OPTION
+                    // --------------------------------
+
+                    const correct =
+                        options.find(
+                            option =>
+                                option.correct === true
+                        );
+
+
+                    setCorrectOption(
+                        correct?.optionLabel || ""
+                    );
+
+
+                    return;
+                }
+
+
+
+                // =================================================
+                // ADD MODE
+                // =================================================
+
+                // --------------------------------
+                // GET ALL QUESTIONS
+                // --------------------------------
+
+                const response =
+                    await getQuestion();
+
+
+                const allQuestions =
+                    Array.isArray(response?.data)
+                        ? response.data
+                        : Array.isArray(response)
+                            ? response
+                            : [];
+
+
+                // --------------------------------
+                // QUESTIONS FOR THIS EXAM
+                // --------------------------------
+
+                const examQuestions =
+                    allQuestions.filter(
+                        question =>
+                            String(question.examId) ===
+                            String(examId)
+                    );
+
+
+                // --------------------------------
+                // FIND HIGHEST ORDER
+                // --------------------------------
+
+                let highestOrder = 0;
+
+
+                examQuestions.forEach(
+                    question => {
+
+                        const order =
+                            Number(
+                                question.questionOrder
+                            );
+
+
+                        if (
+                            !isNaN(order) &&
+                            order > highestOrder
+                        ) {
+
+                            highestOrder = order;
+
+                        }
+
+                    }
+                );
+
+
+                // --------------------------------
+                // NEXT QUESTION ORDER
+                // --------------------------------
+
+                setQuestionOrder(
+                    highestOrder + 1
+                );
+
+
+            } catch (error) {
+
+                console.error(
+                    "Failed to load question data:",
+                    error
+                );
+
+
+                const status =
+                    error.response?.status;
+
+
+                // ========================================
+                // SESSION EXPIRED / FORBIDDEN
+                // ========================================
+
+                if (
+                    status === 401 ||
+                    status === 403
+                ) {
+
+                    logout();
+
+                    navigate(
+                        "/login",
+                        {
+                            replace: true
+                        }
+                    );
+
+                    return;
+                }
+
+
+                setError(
+                    error.response?.data?.message ||
+                    (
+                        isEditMode
+                            ? "Unable to load question."
+                            : "Unable to determine question order."
+                    )
+                );
+
+
+            } finally {
+
+                setLoading(false);
+
+            }
+
+        };
+
+
+        loadQuestionData();
+
+    }, [
+        examId,
+        questionId,
+        isEditMode,
+        navigate,
+        logout
+    ]);
+
+
+
+    // ========================================
+    // SUBMIT
+    // ========================================
 
     const handleSubmit = async (e) => {
 
@@ -36,66 +394,125 @@ const AddQuestion = () => {
         setError("");
         setSuccess("");
 
-        const token = localStorage.getItem("token");
+
+        // ========================================
+        // CHECK TOKEN
+        // ========================================
+
+        const token =
+            localStorage.getItem("token");
+
 
         if (!token) {
 
-            navigate("/login", {
-                replace: true
-            });
+            logout();
+
+            navigate(
+                "/login",
+                {
+                    replace: true
+                }
+            );
 
             return;
         }
 
+
+        // ========================================
+        // CHECK EXAM
+        // ========================================
 
         if (!examId) {
 
-            setError("Exam ID is missing.");
+            setError(
+                "Exam ID is missing."
+            );
 
             return;
         }
 
 
-        setLoading(true);
+        // ========================================
+        // CHECK QUESTION ORDER
+        // ========================================
+
+        if (!questionOrder) {
+
+            setError(
+                "Unable to determine question order."
+            );
+
+            return;
+        }
+
+
+        setSubmitting(true);
 
 
         try {
 
+            // ========================================
+            // QUESTION DATA
+            // ========================================
+
             const questionData = {
 
-                questionText: question,
+                questionText:
+                    question,
 
-                marks: Number(marks),
+                marks:
+                    Number(marks),
 
-                questionOrder: Number(questionOrder),
+                questionOrder:
+                    Number(questionOrder),
 
                 options: [
 
                     {
                         optionLabel: "A",
-                        optionText: optionA,
-                        correct: correctOption === "A",
+
+                        optionText:
+                            optionA,
+
+                        correct:
+                            correctOption === "A",
+
                         optionOrder: 1
                     },
 
                     {
                         optionLabel: "B",
-                        optionText: optionB,
-                        correct: correctOption === "B",
+
+                        optionText:
+                            optionB,
+
+                        correct:
+                            correctOption === "B",
+
                         optionOrder: 2
                     },
 
                     {
                         optionLabel: "C",
-                        optionText: optionC,
-                        correct: correctOption === "C",
+
+                        optionText:
+                            optionC,
+
+                        correct:
+                            correctOption === "C",
+
                         optionOrder: 3
                     },
 
                     {
                         optionLabel: "D",
-                        optionText: optionD,
-                        correct: correctOption === "D",
+
+                        optionText:
+                            optionD,
+
+                        correct:
+                            correctOption === "D",
+
                         optionOrder: 4
                     }
 
@@ -105,53 +522,83 @@ const AddQuestion = () => {
 
 
             console.log(
-                "Creating question:",
+                isEditMode
+                    ? "Updating question:"
+                    : "Creating question:",
                 questionData
             );
 
 
-            // const response = await axios.post(
 
-            //     `http://localhost:8080/api/exams/${examId}/questions`,
+            // =================================================
+            // EDIT QUESTION
+            // =================================================
 
-            //     questionData,
+            if (isEditMode) {
 
-            //     {
-            //         headers: {
-            //             Authorization: `Bearer ${token}`,
-            //             "Content-Type": "application/json"
-            //         }
-            //     }
+                await updateQuestion(
+                    questionId,
+                    questionData
+                );
 
-            // );
-            const response = await api.post(
-                `/exams/${examId}/questions`,
+
+                setSuccess(
+                    "Question updated successfully."
+                );
+
+
+                return;
+            }
+
+
+
+            // =================================================
+            // CREATE QUESTION
+            // =================================================
+
+            await createQuestion(
+                examId,
                 questionData
             );
 
 
-            console.log(
-                "Question created:",
-                response.data
+            setSuccess(
+                "Question added successfully."
             );
 
 
-            setSuccess("Question added successfully.");
+            // ========================================
+            // CLEAR FORM
+            // ========================================
+
+            setQuestion("");
+
+            setOptionA("");
+            setOptionB("");
+            setOptionC("");
+            setOptionD("");
+
+            setCorrectOption("");
+
+            setMarks(1);
 
 
-            // Go back to questions after a short delay
+            // ========================================
+            // NEXT QUESTION NUMBER
+            // ========================================
 
-            setTimeout(() => {
-
-                navigate("/teacher/questions");
-
-            }, 1000);
+            setQuestionOrder(
+                previousOrder =>
+                    Number(previousOrder) + 1
+            );
 
 
         } catch (error) {
 
             console.error(
-                "Failed to create question:",
+                isEditMode
+                    ? "Failed to update question:"
+                    : "Failed to create question:",
                 error
             );
 
@@ -160,98 +607,228 @@ const AddQuestion = () => {
                 error.response?.status;
 
 
-            if (status === 401 || status === 403) {
+            // ========================================
+            // SESSION EXPIRED
+            // ========================================
 
-                navigate("/login", {
-                    replace: true
-                });
+            if (
+                status === 401 ||
+                status === 403
+            ) {
+
+                logout();
+
+                navigate(
+                    "/login",
+                    {
+                        replace: true
+                    }
+                );
 
                 return;
             }
 
 
+            // ========================================
+            // ERROR MESSAGE
+            // ========================================
+
             setError(
                 error.response?.data?.message ||
-                "Unable to create question."
+                (
+                    isEditMode
+                        ? "Unable to update question."
+                        : "Unable to add question."
+                )
             );
 
 
         } finally {
 
-            setLoading(false);
+            setSubmitting(false);
 
         }
 
     };
 
 
+
+    // ========================================
+    // UI
+    // ========================================
+
     return (
 
-        <div className="min-h-screen bg-slate-100">
+        <div className="min-h-screen bg-slate-100 flex">
 
-            {/* Header */}
 
-            <header className="border-b border-slate-200 bg-white">
+            {/* ================================================= */}
+            {/* SIDEBAR */}
+            {/* ================================================= */}
 
-                <div className="flex items-center justify-between px-8 py-5">
+            <TeacherSidebar />
+
+
+
+            {/* ================================================= */}
+            {/* MAIN */}
+            {/* ================================================= */}
+
+            <main className="flex-1 p-8">
+
+
+                {/* ========================================= */}
+                {/* HEADER */}
+                {/* ========================================= */}
+
+                <div
+                    className="
+                        mb-8
+                        flex
+                        items-center
+                        justify-between
+                        gap-6
+                    "
+                >
 
                     <div>
 
-                        <h1 className="text-2xl font-bold text-slate-800">
-                            Add Question
+                        <button
+                            type="button"
+                            onClick={() =>
+                                navigate(
+                                    `/teacher/exams/${examId}/questions`
+                                )
+                            }
+                            className="
+                                mb-3
+                                text-sm
+                                text-slate-500
+                                hover:text-slate-800
+                            "
+                        >
+
+                            ← Back to Questions
+
+                        </button>
+
+
+                        <h1
+                            className="
+                                text-3xl
+                                font-bold
+                                text-slate-800
+                            "
+                        >
+
+                            {isEditMode
+                                ? "Edit Question"
+                                : "Add Question"
+                            }
+
                         </h1>
 
-                        <p className="mt-1 text-sm text-slate-500">
-                            Add a new question to examination #{examId}
+
+                        <p className="mt-2 text-slate-500">
+
+                            {isEditMode
+                                ? `Edit question in examination #${examId}`
+                                : `Add a new question to examination #${examId}`
+                            }
+
                         </p>
 
                     </div>
 
 
-                    <button
-                        type="button"
-                        onClick={() =>
-                            navigate("/teacher/questions")
-                        }
-                        className="
-                            rounded-lg
-                            bg-slate-800
-                            px-5 py-3
-                            text-sm font-semibold
-                            text-white
-                            shadow-sm
-                            transition
-                            hover:bg-slate-700
-                        "
-                    >
-                        Question Bank
-                    </button>
+
+                    {/* ========================================= */}
+                    {/* QUESTION NUMBER */}
+                    {/* ========================================= */}
+
+                    {!loading &&
+                        questionOrder && (
+
+                        <div
+                            className="
+                                rounded-xl
+                                border border-slate-200
+                                bg-white
+                                px-5 py-4
+                                shadow-sm
+                            "
+                        >
+
+                            <p
+                                className="
+                                    text-xs
+                                    text-slate-500
+                                "
+                            >
+
+                                Question Number
+
+                            </p>
+
+
+                            <p
+                                className="
+                                    mt-1
+                                    text-2xl
+                                    font-bold
+                                    text-slate-800
+                                "
+                            >
+
+                                {questionOrder}
+
+                            </p>
+
+                        </div>
+
+                    )}
 
                 </div>
 
-            </header>
 
 
-            {/* Main Content */}
+                {/* ========================================= */}
+                {/* LOADING */}
+                {/* ========================================= */}
 
-            <main className="mx-auto max-w-4xl px-6 py-10">
+                {loading && (
 
-                <form
-                    onSubmit={handleSubmit}
-                    className="
-                        rounded-xl
-                        border border-slate-200
-                        bg-white
-                        p-8
-                        shadow-sm
-                    "
-                >
+                    <div
+                        className="
+                            mb-6
+                            rounded-xl
+                            border border-slate-200
+                            bg-white
+                            px-6 py-5
+                            text-slate-500
+                            shadow-sm
+                        "
+                    >
 
-                    {/* Error */}
+                        {isEditMode
+                            ? "Loading question..."
+                            : "Determining question number..."
+                        }
 
-                    {error && (
+                    </div>
 
-                        <div className="
+                )}
+
+
+
+                {/* ========================================= */}
+                {/* ERROR */}
+                {/* ========================================= */}
+
+                {error && (
+
+                    <div
+                        className="
                             mb-6
                             rounded-lg
                             border border-red-200
@@ -259,18 +836,25 @@ const AddQuestion = () => {
                             px-4 py-3
                             text-sm
                             text-red-700
-                        ">
-                            {error}
-                        </div>
+                        "
+                    >
 
-                    )}
+                        {error}
+
+                    </div>
+
+                )}
 
 
-                    {/* Success */}
 
-                    {success && (
+                {/* ========================================= */}
+                {/* SUCCESS */}
+                {/* ========================================= */}
 
-                        <div className="
+                {success && (
+
+                    <div
+                        className="
                             mb-6
                             rounded-lg
                             border border-green-200
@@ -278,344 +862,76 @@ const AddQuestion = () => {
                             px-4 py-3
                             text-sm
                             text-green-700
-                        ">
-                            {success}
-                        </div>
+                        "
+                    >
 
-                    )}
-
-
-                    {/* Question */}
-
-                    <div className="mb-8">
-
-                        <label className="
-                            mb-2 block
-                            text-sm font-semibold
-                            text-slate-700
-                        ">
-                            Question
-                        </label>
-
-                        <textarea
-                            value={question}
-                            onChange={(e) =>
-                                setQuestion(e.target.value)
-                            }
-                            placeholder="Enter your question..."
-                            rows="4"
-                            required
-                            className="
-                                w-full
-                                rounded-lg
-                                border border-slate-300
-                                px-4 py-3
-                                text-sm
-                                text-slate-800
-                                outline-none
-                                transition
-                                focus:border-slate-500
-                                focus:ring-2
-                                focus:ring-slate-200
-                            "
-                        />
+                        {success}
 
                     </div>
 
-
-                    {/* Question Order */}
-
-                    <div className="mb-8">
-
-                        <label className="
-                            mb-2 block
-                            text-sm font-semibold
-                            text-slate-700
-                        ">
-                            Question Order
-                        </label>
-
-                        <input
-                            type="number"
-                            min="1"
-                            value={questionOrder}
-                            onChange={(e) =>
-                                setQuestionOrder(e.target.value)
-                            }
-                            required
-                            className="
-                                w-full
-                                rounded-lg
-                                border border-slate-300
-                                px-4 py-3
-                                text-sm
-                                outline-none
-                                focus:border-slate-500
-                                focus:ring-2
-                                focus:ring-slate-200
-                            "
-                        />
-
-                        <p className="mt-1 text-xs text-slate-500">
-                            Position of this question in the exam.
-                        </p>
-
-                    </div>
+                )}
 
 
-                    {/* Options */}
 
-                    <div className="mb-8">
+                {/* ========================================= */}
+                {/* FORM */}
+                {/* ========================================= */}
 
-                        <h2 className="
-                            mb-4
-                            text-lg font-semibold
-                            text-slate-800
-                        ">
-                            Answer Options
-                        </h2>
+                {!loading && !error && (
+
+                    <form
+                        onSubmit={handleSubmit}
+                        className="
+                            rounded-xl
+                            border border-slate-200
+                            bg-white
+                            p-8
+                            shadow-sm
+                        "
+                    >
 
 
-                        {/* A */}
+                        {/* ================================= */}
+                        {/* QUESTION */}
+                        {/* ================================= */}
 
-                        <div className="mb-4">
+                        <div className="mb-8">
 
-                            <label className="
-                                mb-2 block
-                                text-sm font-medium
-                                text-slate-600
-                            ">
-                                Option A
-                            </label>
-
-                            <input
-                                type="text"
-                                value={optionA}
-                                onChange={(e) =>
-                                    setOptionA(e.target.value)
-                                }
-                                placeholder="Enter option A"
-                                required
+                            <label
                                 className="
-                                    w-full
-                                    rounded-lg
-                                    border border-slate-300
-                                    px-4 py-3
+                                    mb-2
+                                    block
                                     text-sm
-                                    outline-none
-                                    focus:border-slate-500
-                                    focus:ring-2
-                                    focus:ring-slate-200
-                                "
-                            />
-
-                        </div>
-
-
-                        {/* B */}
-
-                        <div className="mb-4">
-
-                            <label className="
-                                mb-2 block
-                                text-sm font-medium
-                                text-slate-600
-                            ">
-                                Option B
-                            </label>
-
-                            <input
-                                type="text"
-                                value={optionB}
-                                onChange={(e) =>
-                                    setOptionB(e.target.value)
-                                }
-                                placeholder="Enter option B"
-                                required
-                                className="
-                                    w-full
-                                    rounded-lg
-                                    border border-slate-300
-                                    px-4 py-3
-                                    text-sm
-                                    outline-none
-                                    focus:border-slate-500
-                                    focus:ring-2
-                                    focus:ring-slate-200
-                                "
-                            />
-
-                        </div>
-
-
-                        {/* C */}
-
-                        <div className="mb-4">
-
-                            <label className="
-                                mb-2 block
-                                text-sm font-medium
-                                text-slate-600
-                            ">
-                                Option C
-                            </label>
-
-                            <input
-                                type="text"
-                                value={optionC}
-                                onChange={(e) =>
-                                    setOptionC(e.target.value)
-                                }
-                                placeholder="Enter option C"
-                                required
-                                className="
-                                    w-full
-                                    rounded-lg
-                                    border border-slate-300
-                                    px-4 py-3
-                                    text-sm
-                                    outline-none
-                                    focus:border-slate-500
-                                    focus:ring-2
-                                    focus:ring-slate-200
-                                "
-                            />
-
-                        </div>
-
-
-                        {/* D */}
-
-                        <div>
-
-                            <label className="
-                                mb-2 block
-                                text-sm font-medium
-                                text-slate-600
-                            ">
-                                Option D
-                            </label>
-
-                            <input
-                                type="text"
-                                value={optionD}
-                                onChange={(e) =>
-                                    setOptionD(e.target.value)
-                                }
-                                placeholder="Enter option D"
-                                required
-                                className="
-                                    w-full
-                                    rounded-lg
-                                    border border-slate-300
-                                    px-4 py-3
-                                    text-sm
-                                    outline-none
-                                    focus:border-slate-500
-                                    focus:ring-2
-                                    focus:ring-slate-200
-                                "
-                            />
-
-                        </div>
-
-                    </div>
-
-
-                    {/* Correct Answer + Marks */}
-
-                    <div className="
-                        grid
-                        grid-cols-1
-                        gap-6
-                        md:grid-cols-2
-                    ">
-
-                        {/* Correct Option */}
-
-                        <div>
-
-                            <label className="
-                                mb-2 block
-                                text-sm font-semibold
-                                text-slate-700
-                            ">
-                                Correct Answer
-                            </label>
-
-                            <select
-                                value={correctOption}
-                                onChange={(e) =>
-                                    setCorrectOption(e.target.value)
-                                }
-                                required
-                                className="
-                                    w-full
-                                    rounded-lg
-                                    border border-slate-300
-                                    bg-white
-                                    px-4 py-3
-                                    text-sm
+                                    font-semibold
                                     text-slate-700
-                                    outline-none
-                                    focus:border-slate-500
-                                    focus:ring-2
-                                    focus:ring-slate-200
                                 "
                             >
 
-                                <option value="">
-                                    Select correct option
-                                </option>
+                                Question
 
-                                <option value="A">
-                                    Option A
-                                </option>
-
-                                <option value="B">
-                                    Option B
-                                </option>
-
-                                <option value="C">
-                                    Option C
-                                </option>
-
-                                <option value="D">
-                                    Option D
-                                </option>
-
-                            </select>
-
-                        </div>
-
-
-                        {/* Marks */}
-
-                        <div>
-
-                            <label className="
-                                mb-2 block
-                                text-sm font-semibold
-                                text-slate-700
-                            ">
-                                Marks
                             </label>
 
-                            <input
-                                type="number"
-                                min="1"
-                                value={marks}
+
+                            <textarea
+                                value={question}
                                 onChange={(e) =>
-                                    setMarks(e.target.value)
+                                    setQuestion(
+                                        e.target.value
+                                    )
                                 }
+                                placeholder="Enter your question..."
+                                rows="4"
                                 required
                                 className="
                                     w-full
                                     rounded-lg
-                                    border border-slate-300
+                                    border
+                                    border-slate-300
                                     px-4 py-3
                                     text-sm
+                                    text-slate-800
                                     outline-none
+                                    transition
                                     focus:border-slate-500
                                     focus:ring-2
                                     focus:ring-slate-200
@@ -624,69 +940,433 @@ const AddQuestion = () => {
 
                         </div>
 
-                    </div>
 
 
-                    {/* Buttons */}
+                        {/* ================================= */}
+                        {/* OPTIONS */}
+                        {/* ================================= */}
 
-                    <div className="
-                        mt-10
-                        flex justify-end gap-3
-                        border-t border-slate-200
-                        pt-6
-                    ">
+                        <div className="mb-8">
 
-                        <button
-                            type="button"
-                            onClick={() =>
-                                navigate("/teacher/questions")
-                            }
+                            <h2
+                                className="
+                                    mb-4
+                                    text-lg
+                                    font-semibold
+                                    text-slate-800
+                                "
+                            >
+
+                                Answer Options
+
+                            </h2>
+
+
+                            {/* A */}
+
+                            <div className="mb-4">
+
+                                <label
+                                    className="
+                                        mb-2
+                                        block
+                                        text-sm
+                                        font-medium
+                                        text-slate-600
+                                    "
+                                >
+
+                                    Option A
+
+                                </label>
+
+
+                                <input
+                                    type="text"
+                                    value={optionA}
+                                    onChange={(e) =>
+                                        setOptionA(
+                                            e.target.value
+                                        )
+                                    }
+                                    placeholder="Enter option A"
+                                    required
+                                    className="
+                                        w-full
+                                        rounded-lg
+                                        border
+                                        border-slate-300
+                                        px-4 py-3
+                                        text-sm
+                                        outline-none
+                                        focus:border-slate-500
+                                        focus:ring-2
+                                        focus:ring-slate-200
+                                    "
+                                />
+
+                            </div>
+
+
+                            {/* B */}
+
+                            <div className="mb-4">
+
+                                <label
+                                    className="
+                                        mb-2
+                                        block
+                                        text-sm
+                                        font-medium
+                                        text-slate-600
+                                    "
+                                >
+
+                                    Option B
+
+                                </label>
+
+
+                                <input
+                                    type="text"
+                                    value={optionB}
+                                    onChange={(e) =>
+                                        setOptionB(
+                                            e.target.value
+                                        )
+                                    }
+                                    placeholder="Enter option B"
+                                    required
+                                    className="
+                                        w-full
+                                        rounded-lg
+                                        border
+                                        border-slate-300
+                                        px-4 py-3
+                                        text-sm
+                                        outline-none
+                                        focus:border-slate-500
+                                        focus:ring-2
+                                        focus:ring-slate-200
+                                    "
+                                />
+
+                            </div>
+
+
+                            {/* C */}
+
+                            <div className="mb-4">
+
+                                <label
+                                    className="
+                                        mb-2
+                                        block
+                                        text-sm
+                                        font-medium
+                                        text-slate-600
+                                    "
+                                >
+
+                                    Option C
+
+                                </label>
+
+
+                                <input
+                                    type="text"
+                                    value={optionC}
+                                    onChange={(e) =>
+                                        setOptionC(
+                                            e.target.value
+                                        )
+                                    }
+                                    placeholder="Enter option C"
+                                    required
+                                    className="
+                                        w-full
+                                        rounded-lg
+                                        border
+                                        border-slate-300
+                                        px-4 py-3
+                                        text-sm
+                                        outline-none
+                                        focus:border-slate-500
+                                        focus:ring-2
+                                        focus:ring-slate-200
+                                    "
+                                />
+
+                            </div>
+
+
+                            {/* D */}
+
+                            <div>
+
+                                <label
+                                    className="
+                                        mb-2
+                                        block
+                                        text-sm
+                                        font-medium
+                                        text-slate-600
+                                    "
+                                >
+
+                                    Option D
+
+                                </label>
+
+
+                                <input
+                                    type="text"
+                                    value={optionD}
+                                    onChange={(e) =>
+                                        setOptionD(
+                                            e.target.value
+                                        )
+                                    }
+                                    placeholder="Enter option D"
+                                    required
+                                    className="
+                                        w-full
+                                        rounded-lg
+                                        border
+                                        border-slate-300
+                                        px-4 py-3
+                                        text-sm
+                                        outline-none
+                                        focus:border-slate-500
+                                        focus:ring-2
+                                        focus:ring-slate-200
+                                    "
+                                />
+
+                            </div>
+
+                        </div>
+
+
+
+                        {/* ================================= */}
+                        {/* CORRECT ANSWER + MARKS */}
+                        {/* ================================= */}
+
+                        <div
                             className="
-                                rounded-lg
-                                border border-slate-300
-                                bg-white
-                                px-5 py-3
-                                text-sm font-semibold
-                                text-slate-700
-                                transition
-                                hover:bg-slate-50
+                                grid
+                                grid-cols-1
+                                gap-6
+                                md:grid-cols-2
                             "
                         >
-                            Cancel
-                        </button>
+
+                            {/* Correct Answer */}
+
+                            <div>
+
+                                <label
+                                    className="
+                                        mb-2
+                                        block
+                                        text-sm
+                                        font-semibold
+                                        text-slate-700
+                                    "
+                                >
+
+                                    Correct Answer
+
+                                </label>
 
 
-                        <button
-                            type="submit"
-                            disabled={loading}
+                                <select
+                                    value={correctOption}
+                                    onChange={(e) =>
+                                        setCorrectOption(
+                                            e.target.value
+                                        )
+                                    }
+                                    required
+                                    className="
+                                        w-full
+                                        rounded-lg
+                                        border
+                                        border-slate-300
+                                        bg-white
+                                        px-4 py-3
+                                        text-sm
+                                        text-slate-700
+                                        outline-none
+                                        focus:border-slate-500
+                                        focus:ring-2
+                                        focus:ring-slate-200
+                                    "
+                                >
+
+                                    <option value="">
+                                        Select correct option
+                                    </option>
+
+                                    <option value="A">
+                                        Option A
+                                    </option>
+
+                                    <option value="B">
+                                        Option B
+                                    </option>
+
+                                    <option value="C">
+                                        Option C
+                                    </option>
+
+                                    <option value="D">
+                                        Option D
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+
+                            {/* Marks */}
+
+                            <div>
+
+                                <label
+                                    className="
+                                        mb-2
+                                        block
+                                        text-sm
+                                        font-semibold
+                                        text-slate-700
+                                    "
+                                >
+
+                                    Marks
+
+                                </label>
+
+
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={marks}
+                                    onChange={(e) =>
+                                        setMarks(
+                                            e.target.value
+                                        )
+                                    }
+                                    required
+                                    className="
+                                        w-full
+                                        rounded-lg
+                                        border
+                                        border-slate-300
+                                        px-4 py-3
+                                        text-sm
+                                        outline-none
+                                        focus:border-slate-500
+                                        focus:ring-2
+                                        focus:ring-slate-200
+                                    "
+                                />
+
+                            </div>
+
+                        </div>
+
+
+
+                        {/* ================================= */}
+                        {/* BUTTONS */}
+                        {/* ================================= */}
+
+                        <div
                             className="
-                                rounded-lg
-                                bg-slate-800
-                                px-6 py-3
-                                text-sm font-semibold
-                                text-white
-                                shadow-sm
-                                transition
-                                hover:bg-slate-700
-                                disabled:cursor-not-allowed
-                                disabled:opacity-50
+                                mt-10
+                                flex
+                                justify-end
+                                gap-3
+                                border-t
+                                border-slate-200
+                                pt-6
                             "
                         >
 
-                            {loading
-                                ? "Adding..."
-                                : "Add Question"}
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    navigate(
+                                        `/teacher/exams/${examId}/questions`
+                                    )
+                                }
+                                className="
+                                    rounded-lg
+                                    border
+                                    border-slate-300
+                                    bg-white
+                                    px-5 py-3
+                                    text-sm
+                                    font-semibold
+                                    text-slate-700
+                                    transition
+                                    hover:bg-slate-50
+                                "
+                            >
 
-                        </button>
+                                Cancel
 
-                    </div>
+                            </button>
 
-                </form>
+
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="
+                                    rounded-lg
+                                    bg-slate-800
+                                    px-6 py-3
+                                    text-sm
+                                    font-semibold
+                                    text-white
+                                    shadow-sm
+                                    transition
+                                    hover:bg-slate-700
+                                    disabled:cursor-not-allowed
+                                    disabled:opacity-50
+                                "
+                            >
+
+                                {submitting
+                                    ? (
+                                        isEditMode
+                                            ? "Updating..."
+                                            : "Adding..."
+                                    )
+                                    : (
+                                        isEditMode
+                                            ? "Update Question"
+                                            : "Add Question"
+                                    )
+                                }
+
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                )}
 
             </main>
 
         </div>
+
     );
+
 };
+
 
 export default AddQuestion;
