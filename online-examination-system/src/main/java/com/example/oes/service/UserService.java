@@ -10,8 +10,10 @@ import com.example.oes.exception.AuthenticationException;
 import com.example.oes.dto.LoginResponse;
 import com.example.oes.security.JwtService;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.List;
 
@@ -98,6 +100,111 @@ public List<UserResponse> getAllUsers() {
         );
 
         return new LoginResponse(token, userResponse);
+    }
+//    private UserResponse convertToResponse(User user) {
+//
+//        UserResponse response =
+//                new UserResponse();
+//
+//        response.setUserId(
+//                user.getUserId()
+//        );
+//
+//        response.setFullName(
+//                user.getFullName()
+//        );
+//
+//        response.setEmail(
+//                user.getEmail()
+//        );
+//
+//        response.setUserRole(
+//                user.getUserRole()
+//        );
+//
+//        response.setAccountStatus(
+//                user.getAccountStatus()
+//        );
+//
+//        response.setCreatedAt(
+//                user.getCreatedAt() != null
+//                        ? user.getCreatedAt().toString()
+//                        : null
+//        );
+//
+//        response.setUpdatedAt(
+//                user.getUpdatedAt() != null
+//                        ? user.getUpdatedAt().toString()
+//                        : null
+//        );
+//
+//        return response;
+//    }
+    public UserResponse getTeacherProfile(String email) {
+
+        User user =
+                userRepository.findByEmail(email)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Teacher not found"
+                                )
+                        );
+
+        if (!"TEACHER".equalsIgnoreCase(
+                user.getUserRole())) {
+
+            throw new RuntimeException(
+                    "User is not a teacher"
+            );
+        }
+
+        return new UserResponse(
+                user.getUserId(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getUserRole(),
+                user.getAccountStatus()
+        );
+    }
+    public UserResponse getStudentProfile(String email) {
+
+        User user =
+                userRepository.findByEmail(email)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Student not found"
+                                )
+                        );
+
+        if (!"STUDENT".equalsIgnoreCase(
+                user.getUserRole())) {
+
+            throw new RuntimeException(
+                    "User is not a student"
+            );
+        }
+
+        return new UserResponse(
+                user.getUserId(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getUserRole(),
+                user.getAccountStatus()
+        );
+    }
+    public List<UserResponse> getAllStudents() {
+
+        return userRepository
+                .findByUserRoleIgnoreCase("STUDENT")
+                .stream()
+                .map(user -> new UserResponse(
+                        user.getUserId(),
+                        user.getFullName(),
+                        user.getEmail(),
+                        user.getUserRole(),
+                        user.getAccountStatus()
+                ))
+                .toList();
     }
 
 }

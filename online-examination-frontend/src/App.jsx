@@ -16,6 +16,9 @@ import LandingPage from "./pages/LandingPage";
 import AddQuestion from "./pages/teacher/AddQuestion";
 import TeacherSubjects from "./pages/teacher/TeacherSubjects";
 import TeacherExamQuestions from "./pages/teacher/TeacherExamQuestions";
+import AddSubject from "./pages/teacher/AddSubject";
+import TeacherProfile from "./pages/teacher/TeacherProfile";
+import TeacherStudents from "./pages/teacher/TeacherStudents";
 
 function App() {
     return (
@@ -75,12 +78,16 @@ function App() {
                     />
                 }>
 
+
                     <Route
                         path="/teacher/dashboard"
                         element={<TeacherDashboard />}
                     />
 
-                
+                    <Route
+                        path="/teacher/profile"
+                        element={<TeacherProfile />}
+                    />
 
                     <Route
                         path="/teacher/create-exam"
@@ -111,6 +118,14 @@ function App() {
                     <Route
                         path="/teacher/exams/:examId/questions/:questionId/edit"
                         element={<AddQuestion />}
+                    />
+                    <Route
+                        path="/teacher/subjects/create"
+                        element={<AddSubject />}
+                    />
+                    <Route
+                        path="/teacher/students"
+                        element={<TeacherStudents/>}
                     />
 
                     

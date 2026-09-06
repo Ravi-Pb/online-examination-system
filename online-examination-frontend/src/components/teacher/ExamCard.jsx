@@ -264,6 +264,43 @@ const ExamCard = ({
                     Questions
                 </button>
 
+                {/* Delete */}
+
+                <button
+                    onClick={() =>
+                        onDelete(
+                            exam.examId
+                        )
+                    }
+                    disabled={
+                        actionLoading ===
+                        `delete-${exam.examId}`
+                    }
+                    className="
+                        flex-1
+                        min-w-[90px]
+                        px-3
+                        py-2
+                        rounded-lg
+                        bg-red-600
+                        text-white
+                        text-sm
+                        font-medium
+                        hover:bg-red-700
+                        disabled:opacity-50
+                        disabled:cursor-not-allowed
+                        transition
+                    "
+                >
+
+                    {actionLoading ===
+                    `delete-${exam.examId}`
+                        ? "Deleting..."
+                        : "Delete"
+                    }
+
+                </button>
+
 
                 {/* Publish */}
 
@@ -307,42 +344,7 @@ const ExamCard = ({
                 )}
 
 
-                {/* Delete */}
-
-                <button
-                    onClick={() =>
-                        onDelete(
-                            exam.examId
-                        )
-                    }
-                    disabled={
-                        actionLoading ===
-                        `delete-${exam.examId}`
-                    }
-                    className="
-                        flex-1
-                        min-w-[90px]
-                        px-3
-                        py-2
-                        rounded-lg
-                        bg-red-600
-                        text-white
-                        text-sm
-                        font-medium
-                        hover:bg-red-700
-                        disabled:opacity-50
-                        disabled:cursor-not-allowed
-                        transition
-                    "
-                >
-
-                    {actionLoading ===
-                    `delete-${exam.examId}`
-                        ? "Deleting..."
-                        : "Delete"
-                    }
-
-                </button>
+                
 
             </div>
 

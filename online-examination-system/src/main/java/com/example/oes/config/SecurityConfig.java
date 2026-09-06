@@ -213,6 +213,30 @@ public class SecurityConfig {
                                 "TEACHER"
                         )
 
+                                // =========================
+// USERS / PROFILES
+// =========================
+
+// Teacher's own profile
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/users/teacher/me"
+                                ).hasRole("TEACHER")
+
+
+// Student's own profile
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/users/student/me"
+                                ).hasAnyRole("STUDENT","TEACHER")
+
+
+// Teacher can view all students
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/users/teacher/students"
+                                ).hasRole("TEACHER")
+
 
                         // =========================
                         // EVERYTHING ELSE

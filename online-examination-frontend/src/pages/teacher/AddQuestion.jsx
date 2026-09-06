@@ -6,7 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import {
     createQuestion,
     updateQuestion,
-    getQuestion
+    getQuestionById
 } from "../../api/questionApi";
 
 import TeacherSidebar from "../../components/teacher/TeacherSidebar";
@@ -108,7 +108,7 @@ const AddQuestion = () => {
                     // --------------------------------
 
                     const response =
-                        await getQuestion(questionId);
+                        await getQuestionById(questionId);
 
 
                     const existingQuestion =
@@ -257,7 +257,7 @@ const AddQuestion = () => {
                 // --------------------------------
 
                 const response =
-                    await getQuestion();
+                    await getQuestionById();
 
 
                 const allQuestions =
