@@ -1,21 +1,45 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import api from "../../api/axios";
+
+import { useAuth } from "../../context/AuthContext";
+
+import {
+    getMyExams,
+    deleteExam,
+    publishExam
+} from "../../api/examApi";
+
+import TeacherSidebar from "../../components/teacher/TeacherSidebar";
+import ExamCard from "../../components/teacher/ExamCard";
+
 
 const TeacherExams = () => {
 
     const navigate = useNavigate();
 
+    const {
+        logout
+    } = useAuth();
+
+
+    // ========================================
+    // STATE
+    // ========================================
+
     const [exams, setExams] = useState([]);
+
     const [loading, setLoading] = useState(true);
+
     const [error, setError] = useState("");
-    const [actionLoading, setActionLoading] = useState(null);
+
+    const [actionLoading, setActionLoading] =
+        useState(null);
 
 
-    // ============================
-    // Load all exams
-    // ============================
+
+    // ========================================
+    // LOAD MY EXAMS
+    // ========================================
 
     const fetchExams = async () => {
 
@@ -24,51 +48,108 @@ const TeacherExams = () => {
             setLoading(true);
             setError("");
 
-            // const response = await axios.get(
-            //     "http://localhost:8080/api/exams",
-            //     {
-            //         headers: {
-            //             Authorization:
-            //                 `Bearer ${localStorage.getItem("token")}`
-            //         }
-            //     }
-            // );
-            const response = await api.get("/exams");
 
-            setExams(response.data);
+            // ========================================
+            // CHECK TOKEN
+            // ========================================
 
-        } catch (error) {
+            const token =
+                localStorage.getItem("token");
 
-            console.error("Failed to load exams:", error);
 
-            if (
-                error.response?.status === 401 ||
-                error.response?.status === 403
-            ) {
+            if (!token) {
 
-                navigate("/login", {
-                    replace: true
-                });
+                logout();
+
+                navigate(
+                    "/login",
+                    {
+                        replace: true
+                    }
+                );
 
                 return;
             }
+
+
+            // ========================================
+            // GET CURRENT TEACHER'S EXAMS
+            // ========================================
+
+            const response =
+                await getMyExams();
+
+
+            console.log(
+                "My Exams API response:",
+                response
+            );
+
+
+            setExams(
+                Array.isArray(response.data)
+                    ? response.data
+                    : []
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Failed to load exams:",
+                error
+            );
+
+
+            const status =
+                error.response?.status;
+
+
+            // ========================================
+            // SESSION EXPIRED
+            // ========================================
+
+            if (
+                status === 401 ||
+                status === 403
+            ) {
+
+                logout();
+
+                navigate(
+                    "/login",
+                    {
+                        replace: true
+                    }
+                );
+
+                return;
+            }
+
+
+            // ========================================
+            // OTHER ERROR
+            // ========================================
 
             setError(
                 error.response?.data?.message ||
                 "Unable to load exams."
             );
 
+
         } finally {
 
             setLoading(false);
 
         }
+
     };
 
 
-    // ============================
-    // Load exams when page opens
-    // ============================
+
+    // ========================================
+    // LOAD WHEN PAGE OPENS
+    // ========================================
 
     useEffect(() => {
 
@@ -77,59 +158,18 @@ const TeacherExams = () => {
     }, []);
 
 
-    // ============================
-    // Publish exam
-    // ============================
 
-    const handlePublish = async (examId) => {
-
-        try {
-
-            setActionLoading(examId);
-            setError("");
-
-            await api.patch(
-                `/exams/${examId}/publish`,
-                {},
-                // {
-                //     headers: {
-                //         Authorization:
-                //             `Bearer ${localStorage.getItem("token")}`
-                //     }
-                // }
-            );
-
-            await fetchExams();
-
-        } catch (error) {
-
-            console.error(
-                "Failed to publish exam:",
-                error
-            );
-
-            setError(
-                error.response?.data?.message ||
-                "Unable to publish exam."
-            );
-
-        } finally {
-
-            setActionLoading(null);
-
-        }
-    };
-
-
-    // ============================
-    // Delete exam
-    // ============================
+    // ========================================
+    // DELETE EXAM
+    // ========================================
 
     const handleDelete = async (examId) => {
 
-        const confirmed = window.confirm(
-            "Are you sure you want to delete this exam?"
-        );
+        const confirmed =
+            window.confirm(
+                "Are you sure you want to delete this exam?"
+            );
+
 
         if (!confirmed) {
             return;
@@ -138,18 +178,20 @@ const TeacherExams = () => {
 
         try {
 
-            setActionLoading(examId);
+            setActionLoading(
+                `delete-${examId}`
+            );
+
             setError("");
 
-            await api.delete(
-                `/exams/${examId}`,
-                // {
-                //     headers: {
-                //         Authorization:
-                //             `Bearer ${localStorage.getItem("token")}`
-                //     }
-                // }
+
+            await deleteExam(
+                examId
             );
+
+
+            // Remove deleted exam
+            // from current list
 
             setExams(
                 previousExams =>
@@ -159,6 +201,7 @@ const TeacherExams = () => {
                     )
             );
 
+
         } catch (error) {
 
             console.error(
@@ -166,117 +209,232 @@ const TeacherExams = () => {
                 error
             );
 
+
+            const status =
+                error.response?.status;
+
+
+            if (
+                status === 401 ||
+                status === 403
+            ) {
+
+                logout();
+
+                navigate(
+                    "/login",
+                    {
+                        replace: true
+                    }
+                );
+
+                return;
+            }
+
+
             setError(
                 error.response?.data?.message ||
                 "Unable to delete exam."
             );
+
 
         } finally {
 
             setActionLoading(null);
 
         }
-    };
-
-
-    // ============================
-    // Edit exam
-    // ============================
-
-    const handleEdit = (examId) => {
-
-       navigate(`/teacher/exams/${exam.examId}/questions`);
 
     };
 
 
-    // ============================
-    // Create exam
-    // ============================
+
+    // ========================================
+    // PUBLISH EXAM
+    // ========================================
+
+    const handlePublish = async (examId) => {
+
+        try {
+
+            setActionLoading(
+                `publish-${examId}`
+            );
+
+            setError("");
+
+
+            const response =
+                await publishExam(
+                    examId
+                );
+
+
+            // ========================================
+            // UPDATE EXAM IN LOCAL STATE
+            // ========================================
+
+            setExams(
+                previousExams =>
+                    previousExams.map(
+                        exam =>
+                            exam.examId === examId
+                                ? response.data
+                                : exam
+                    )
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Failed to publish exam:",
+                error
+            );
+
+
+            const status =
+                error.response?.status;
+
+
+            if (
+                status === 401 ||
+                status === 403
+            ) {
+
+                logout();
+
+                navigate(
+                    "/login",
+                    {
+                        replace: true
+                    }
+                );
+
+                return;
+            }
+
+
+            setError(
+                error.response?.data?.message ||
+                "Unable to publish exam."
+            );
+
+
+        } finally {
+
+            setActionLoading(null);
+
+        }
+
+    };
+
+
+
+    // ========================================
+    // CREATE EXAM
+    // ========================================
 
     const handleCreateExam = () => {
 
-        navigate("/teacher/create-exam");
+        navigate(
+            "/teacher/create-exam"
+        );
 
     };
 
 
-    // ============================
-    // Format date/time
-    // ============================
 
-    const formatDateTime = (dateTime) => {
-
-        if (!dateTime) {
-            return "N/A";
-        }
-
-        return new Date(
-            dateTime
-        ).toLocaleString();
-
-    };
-
-
-    // ============================
-    // Status badge
-    // ============================
-
-    const getStatusClasses = (status) => {
-
-        switch (status?.toUpperCase()) {
-
-            case "PUBLISHED":
-                return "bg-green-100 text-green-700";
-
-            case "DRAFT":
-                return "bg-yellow-100 text-yellow-700";
-
-            case "ONGOING":
-                return "bg-blue-100 text-blue-700";
-
-            case "ENDED":
-            case "EXPIRED":
-                return "bg-red-100 text-red-700";
-
-            default:
-                return "bg-slate-100 text-slate-600";
-        }
-    };
-
+    // ========================================
+    // UI
+    // ========================================
 
     return (
 
-        <div className="min-h-screen bg-slate-100">
+        <div
+            className="
+                min-h-screen
+                bg-slate-100
+                flex
+            "
+        >
 
-            {/* =====================================
-                HEADER
-            ====================================== */}
 
-            <div className="border-b bg-white">
+            {/* ========================================
+                SIDEBAR
+            ======================================== */}
 
-                <div className="flex items-center justify-between px-8 py-5">
+            <TeacherSidebar />
+
+
+
+            {/* ========================================
+                MAIN CONTENT
+            ======================================== */}
+
+            <main
+                className="
+                    flex-1
+                    min-w-0
+                    p-8
+                    overflow-y-auto
+                "
+            >
+
+
+                {/* ========================================
+                    HEADER
+                ======================================== */}
+
+                <div
+                    className="
+                        mb-8
+                        flex
+                        items-center
+                        justify-between
+                        gap-6
+                    "
+                >
 
                     <div>
 
-                        <h1 className="text-3xl font-bold text-slate-800">
+                        <h1
+                            className="
+                                text-3xl
+                                font-bold
+                                text-slate-800
+                            "
+                        >
                             My Exams
                         </h1>
 
-                        <p className="mt-1 text-sm text-slate-500">
+
+                        <p
+                            className="
+                                mt-2
+                                text-slate-500
+                            "
+                        >
                             Create, manage and publish your examinations.
                         </p>
 
                     </div>
 
-                    <div className="flex gap-3">
+
+                    {/* ========================================
+                        CREATE EXAM
+                    ======================================== */}
+
                     <button
-                        onClick={handleCreateExam}
+                        onClick={
+                            handleCreateExam
+                        }
                         className="
                             rounded-lg
                             bg-slate-800
-                            px-5 py-3
-                            text-sm font-semibold
+                            px-5
+                            py-3
+                            text-sm
+                            font-semibold
                             text-white
                             shadow-sm
                             transition
@@ -285,67 +443,62 @@ const TeacherExams = () => {
                     >
                         + Create Exam
                     </button>
-                    <button
-                         onClick={() => navigate("/teacher/dashboard")}
-                        className="
-                            rounded-lg
-                            bg-slate-800
-                            px-5 py-3
-                            text-sm font-semibold
-                            text-white
-                            shadow-sm
-                            transition
-                            hover:bg-slate-700
-                        "
-                    >
-                         Teacher Dashboard 
-                    </button>
-                    </div>
 
                 </div>
 
-            </div>
 
 
-            {/* =====================================
-                MAIN CONTENT
-            ====================================== */}
-
-            <main className="p-8">
-
-
-                {/* Error */}
+                {/* ========================================
+                    ERROR
+                ======================================== */}
 
                 {error && (
 
-                    <div className="
-                        mb-6
-                        rounded-lg
-                        border border-red-200
-                        bg-red-50
-                        px-4 py-3
-                        text-sm
-                        text-red-700
-                    ">
+                    <div
+                        className="
+                            mb-6
+                            rounded-lg
+                            border
+                            border-red-200
+                            bg-red-50
+                            px-4
+                            py-3
+                            text-sm
+                            text-red-700
+                        "
+                    >
+
                         {error}
+
                     </div>
 
                 )}
 
 
-                {/* Loading */}
+
+                {/* ========================================
+                    LOADING
+                ======================================== */}
 
                 {loading && (
 
-                    <div className="
-                        rounded-xl
-                        bg-white
-                        p-10
-                        text-center
-                        shadow-sm
-                    ">
+                    <div
+                        className="
+                            rounded-xl
+                            border
+                            border-slate-200
+                            bg-white
+                            p-10
+                            text-center
+                            shadow-sm
+                        "
+                    >
 
-                        <p className="text-slate-500">
+                        <p
+                            className="
+                                text-slate-500
+                            "
+                        >
                             Loading exams...
                         </p>
 
@@ -354,49 +507,70 @@ const TeacherExams = () => {
                 )}
 
 
-                {/* Empty state */}
 
-                {!loading && exams.length === 0 && (
+                {/* ========================================
+                    EMPTY STATE
+                ======================================== */}
 
-                    <div className="
-                        rounded-xl
-                        border
-                        border-dashed
-                        border-slate-300
-                        bg-white
-                        p-12
-                        text-center
-                    ">
+                {!loading &&
+                    exams.length === 0 && (
 
-                        <div className="text-4xl">
+                    <div
+                        className="
+                            rounded-xl
+                            border
+                            border-dashed
+                            border-slate-300
+                            bg-white
+                            p-12
+                            text-center
+                        "
+                    >
+
+                        <div
+                            className="
+                                text-4xl
+                            "
+                        >
                             📝
                         </div>
 
-                        <h2 className="
-                            mt-4
-                            text-xl
-                            font-semibold
-                            text-slate-800
-                        ">
+
+                        <h2
+                            className="
+                                mt-4
+                                text-xl
+                                font-semibold
+                                text-slate-800
+                            "
+                        >
                             No exams yet
                         </h2>
 
-                        <p className="
-                            mt-2
-                            text-sm
-                            text-slate-500
-                        ">
+
+                        <p
+                            className="
+                                mt-2
+                                text-sm
+                                text-slate-500
+                            "
+                        >
                             Create your first examination to get started.
                         </p>
 
+
                         <button
-                            onClick={handleCreateExam}
+                            onClick={
+                                handleCreateExam
+                            }
                             className="
                                 mt-6
                                 rounded-lg
                                 bg-slate-800
-                                px-5 py-3
-                                text-sm font-semibold
+                                px-5
+                                py-3
+                                text-sm
+                                font-semibold
                                 text-white
                                 transition
                                 hover:bg-slate-700
@@ -410,341 +584,48 @@ const TeacherExams = () => {
                 )}
 
 
-                {/* =====================================
+
+                {/* ========================================
                     EXAM CARDS
-                ====================================== */}
+                ======================================== */}
 
-                {!loading && exams.length > 0 && (
+                {!loading &&
+                    exams.length > 0 && (
 
-                    <div className="
-                        grid
-                        grid-cols-1
-                        gap-6
-                        lg:grid-cols-2
-                    ">
+                    <div
+                        className="
+                            grid
+                            grid-cols-1
+                            gap-6
+                            lg:grid-cols-2
+                            xl:grid-cols-3
+                        "
+                    >
 
-                        {exams.map((exam) => (
+                        {exams.map(
+                            (exam) => (
 
-                            <div
-                                key={exam.examId}
-                                className="
-                                    rounded-xl
-                                    border
-                                    border-slate-200
-                                    bg-white
-                                    p-6
-                                    shadow-sm
-                                    transition
-                                    hover:shadow-md
-                                "
-                            >
+                            <ExamCard
+                                key={
+                                    exam.examId
+                                }
 
-                                {/* Card Header */}
+                                exam={
+                                    exam
+                                }
 
-                                <div className="
-                                    flex
-                                    items-start
-                                    justify-between
-                                    gap-4
-                                ">
+                                onDelete={
+                                    handleDelete
+                                }
 
-                                    <div>
+                                onPublish={
+                                    handlePublish
+                                }
 
-                                        <h2 className="
-                                            text-xl
-                                            font-bold
-                                            text-slate-800
-                                        ">
-                                            {exam.title}
-                                        </h2>
-
-                                        <p className="
-                                            mt-1
-                                            text-sm
-                                            text-slate-500
-                                        ">
-                                            {exam.subjectCode ||
-                                                exam.subjectName ||
-                                                "No subject"}
-                                        </p>
-
-                                    </div>
-
-
-                                    {/* Status */}
-
-                                    <span
-                                        className={`
-                                            rounded-full
-                                            px-3 py-1
-                                            text-xs
-                                            font-semibold
-                                            ${getStatusClasses(
-                                                exam.examStatus
-                                            )}
-                                        `}
-                                    >
-                                        {exam.examStatus ||
-                                            "UNKNOWN"}
-                                    </span>
-
-                                </div>
-
-
-                                {/* Description */}
-
-                                {exam.examDescription && (
-
-                                    <p className="
-                                        mt-4
-                                        text-sm
-                                        leading-6
-                                        text-slate-600
-                                    ">
-                                        {exam.examDescription}
-                                    </p>
-
-                                )}
-
-
-                                {/* Exam Information */}
-
-                                <div className="
-                                    mt-5
-                                    grid
-                                    grid-cols-2
-                                    gap-3
-                                ">
-
-
-                                    {/* Subject */}
-
-                                    <div className="
-                                        rounded-lg
-                                        bg-slate-50
-                                        p-3
-                                    ">
-
-                                        <p className="
-                                            text-xs
-                                            text-slate-500
-                                        ">
-                                            Subject
-                                        </p>
-
-                                        <p className="
-                                            mt-1
-                                            text-sm
-                                            font-semibold
-                                            text-slate-800
-                                        ">
-                                            {exam.subjectCode ||
-                                                "N/A"}
-                                        </p>
-
-                                    </div>
-
-
-                                    {/* Duration */}
-
-                                    <div className="
-                                        rounded-lg
-                                        bg-slate-50
-                                        p-3
-                                    ">
-
-                                        <p className="
-                                            text-xs
-                                            text-slate-500
-                                        ">
-                                            Duration
-                                        </p>
-
-                                        <p className="
-                                            mt-1
-                                            text-sm
-                                            font-semibold
-                                            text-slate-800
-                                        ">
-                                            {exam.durationMinutes
-                                                ? `${exam.durationMinutes} minutes`
-                                                : "N/A"}
-                                        </p>
-
-                                    </div>
-
-
-                                    {/* Start */}
-
-                                    <div className="
-                                        rounded-lg
-                                        bg-slate-50
-                                        p-3
-                                    ">
-
-                                        <p className="
-                                            text-xs
-                                            text-slate-500
-                                        ">
-                                            Starts
-                                        </p>
-
-                                        <p className="
-                                            mt-1
-                                            text-sm
-                                            font-semibold
-                                            text-slate-800
-                                        ">
-                                            {formatDateTime(
-                                                exam.startAt
-                                            )}
-                                        </p>
-
-                                    </div>
-
-
-                                    {/* End */}
-
-                                    <div className="
-                                        rounded-lg
-                                        bg-slate-50
-                                        p-3
-                                    ">
-
-                                        <p className="
-                                            text-xs
-                                            text-slate-500
-                                        ">
-                                            Ends
-                                        </p>
-
-                                        <p className="
-                                            mt-1
-                                            text-sm
-                                            font-semibold
-                                            text-slate-800
-                                        ">
-                                            {formatDateTime(
-                                                exam.endAt
-                                            )}
-                                        </p>
-
-                                    </div>
-
-                                </div>
-
-
-                                {/* =================================
-                                    ACTION BUTTONS
-                                ================================== */}
-
-                                <div className="
-                                    mt-6
-                                    flex
-                                    flex-wrap
-                                    gap-3
-                                ">
-
-
-                                    {/* Edit */}
-
-                                    <button
-                                        onClick={(exam) =>
-                                            handleEdit(
-                                                exam.examId
-                                            )
-                                        }
-                                        disabled={
-                                            actionLoading ===
-                                            exam.examId
-                                        }
-                                        className="
-                                            rounded-lg
-                                            border
-                                            border-slate-300
-                                            px-4 py-2
-                                            text-sm
-                                            font-medium
-                                            text-slate-700
-                                            transition
-                                            hover:bg-slate-50
-                                            disabled:cursor-not-allowed
-                                            disabled:opacity-50
-                                        "
-                                    >
-                                        Questions
-                                    </button>
-
-
-                                    {/* Publish */}
-
-                                    {exam.examStatus?.toUpperCase() ===
-                                        "DRAFT" && (
-
-                                        <button
-                                            onClick={() =>
-                                                handlePublish(
-                                                    exam.examId
-                                                )
-                                            }
-                                            disabled={
-                                                actionLoading ===
-                                                exam.examId
-                                            }
-                                            className="
-                                                rounded-lg
-                                                bg-green-600
-                                                px-4 py-2
-                                                text-sm
-                                                font-medium
-                                                text-white
-                                                transition
-                                                hover:bg-green-700
-                                                disabled:cursor-not-allowed
-                                                disabled:opacity-50
-                                            "
-                                        >
-                                            {actionLoading ===
-                                            exam.examId
-                                                ? "Publishing..."
-                                                : "Publish"}
-                                        </button>
-
-                                    )}
-
-
-                                    {/* Delete */}
-
-                                    <button
-                                        onClick={() =>
-                                            handleDelete(
-                                                exam.examId
-                                            )
-                                        }
-                                        disabled={
-                                            actionLoading ===
-                                            exam.examId
-                                        }
-                                        className="
-                                            rounded-lg
-                                            border
-                                            border-red-200
-                                            px-4 py-2
-                                            text-sm
-                                            font-medium
-                                            text-red-600
-                                            transition
-                                            hover:bg-red-50
-                                            disabled:cursor-not-allowed
-                                            disabled:opacity-50
-                                        "
-                                    >
-                                        Delete
-                                    </button>
-
-                                </div>
-
-                            </div>
+                                actionLoading={
+                                    actionLoading
+                                }
+                            />
 
                         ))}
 
@@ -755,7 +636,10 @@ const TeacherExams = () => {
             </main>
 
         </div>
+
     );
+
 };
+
 
 export default TeacherExams;

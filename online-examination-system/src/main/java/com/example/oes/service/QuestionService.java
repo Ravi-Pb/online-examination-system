@@ -183,7 +183,7 @@ public class QuestionService {
                                 "Exam not found with id: " + examId
                         ));
 
-        validateExamAvailability(exam);
+//        validateExamAvailability(exam);
 
         List<Question> questions =
                 questionRepository
@@ -229,18 +229,24 @@ public class QuestionService {
             Long questionId,
             QuestionRequest request) {
 
+        // 1. Find the question
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Question not found with id: " + questionId
                         ));
 
+        // 2. Verify that the logged-in teacher owns the exam
         verifyTeacherOwnsExam(question.getExam());
+
+        // 3. Validate question order and options
+        validateQuestionOrder(request.getQuestionOrder());
+        validateOptions(request.getOptions());
 
         Long examId = question.getExam().getExamId();
 
-        // Check whether the new question order
-        // conflicts with another question
+        // 4. Check whether the new question order
+        // conflicts with another question in the same exam
         if (!question.getQuestionOrder().equals(request.getQuestionOrder())
                 && questionRepository.existsByExamExamIdAndQuestionOrder(
                 examId,
@@ -253,35 +259,51 @@ public class QuestionService {
             );
         }
 
+        // 5. Update question details
         question.setQuestionText(request.getQuestionText());
         question.setMarks(request.getMarks());
         question.setQuestionOrder(request.getQuestionOrder());
 
         questionRepository.save(question);
 
-        // Remove existing options
+        // 6. Find existing options
         List<Option> existingOptions =
                 optionRepository
                         .findByQuestionQuestionIdOrderByOptionOrderAsc(
                                 questionId
                         );
 
+        // 7. Delete existing options
         optionRepository.deleteAll(existingOptions);
 
-        // Create the updated options
+        // IMPORTANT:
+        // Force Hibernate to execute DELETE statements
+        // before inserting the new options.
+        optionRepository.flush();
+
+        // 8. Create the updated options
         for (OptionRequest optionRequest : request.getOptions()) {
 
             Option option = new Option();
 
             option.setQuestion(question);
-            option.setOptionLabel(optionRequest.getOptionLabel());
-            option.setOptionText(optionRequest.getOptionText());
-            option.setCorrect(optionRequest.getCorrect());
-            option.setOptionOrder(optionRequest.getOptionOrder());
+            option.setOptionLabel(
+                    optionRequest.getOptionLabel()
+            );
+            option.setOptionText(
+                    optionRequest.getOptionText()
+            );
+            option.setCorrect(
+                    optionRequest.getCorrect()
+            );
+            option.setOptionOrder(
+                    optionRequest.getOptionOrder()
+            );
 
             optionRepository.save(option);
         }
 
+        // 9. Return the updated question with its options
         return getQuestionById(questionId);
     }
     @Transactional

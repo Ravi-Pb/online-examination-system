@@ -19,6 +19,7 @@ import TeacherExamQuestions from "./pages/teacher/TeacherExamQuestions";
 import AddSubject from "./pages/teacher/AddSubject";
 import TeacherProfile from "./pages/teacher/TeacherProfile";
 import TeacherStudents from "./pages/teacher/TeacherStudents";
+import TeacherStudentProfile from "./pages/teacher/TeacherStudentProfile";
 
 function App() {
     return (
@@ -98,10 +99,7 @@ function App() {
                         path="/teacher/exams"
                         element={<TeacherExams />}
                     />
-                    <Route
-                        path="/teacher/exams/:examId/questions/create"
-                        element={<AddQuestion />}
-                    />
+                    
                     <Route
                         path="/teacher/questions"
                         element={<TeacherQuestions />}
@@ -116,6 +114,10 @@ function App() {
                         element={<TeacherExamQuestions />}
                     />
                     <Route
+                        path="/teacher/exams/:examId/questions/create"
+                        element={<AddQuestion />}
+                    />
+                    <Route
                         path="/teacher/exams/:examId/questions/:questionId/edit"
                         element={<AddQuestion />}
                     />
@@ -126,6 +128,10 @@ function App() {
                     <Route
                         path="/teacher/students"
                         element={<TeacherStudents/>}
+                    />
+                    <Route
+                        path="/teacher/students/:studentId"
+                        element={<TeacherStudentProfile />}
                     />
 
                     

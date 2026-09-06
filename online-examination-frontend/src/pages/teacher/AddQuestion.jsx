@@ -6,7 +6,8 @@ import { useAuth } from "../../context/AuthContext";
 import {
     createQuestion,
     updateQuestion,
-    getQuestionById
+    getQuestionById,
+    getQuestionsByExam
 } from "../../api/questionApi";
 
 import TeacherSidebar from "../../components/teacher/TeacherSidebar";
@@ -257,7 +258,7 @@ const AddQuestion = () => {
                 // --------------------------------
 
                 const response =
-                    await getQuestionById();
+                    await getQuestionsByExam(examId);
 
 
                 const allQuestions =
@@ -535,6 +536,8 @@ const AddQuestion = () => {
             // =================================================
 
             if (isEditMode) {
+
+                console.log("question id is", {questionId});
 
                 await updateQuestion(
                     questionId,
